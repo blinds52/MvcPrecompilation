@@ -18,10 +18,9 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation
 #if GENERATE_BASELINES
             // Normalize line endings to '\r\n' for comparison. This removes Environment.NewLine from the equation. Not
             // worth updating files just because we generate baselines on a different system.
-            var normalizedPreviousContent = expected?.Replace("\r", "").Replace("\n", "\r\n");
             var normalizedContent = actual.Replace("\r", "").Replace("\n", "\r\n");
 
-            if (!string.Equals(normalizedPreviousContent, normalizedContent, System.StringComparison.Ordinal))
+            if (!string.Equals(expected, normalizedContent, System.StringComparison.Ordinal))
             {
                 var solutionRoot = ApplicationPaths.SolutionDirectory;
                 var projectName = typeof(TestEmbeddedResource).GetTypeInfo().Assembly.GetName().Name;
