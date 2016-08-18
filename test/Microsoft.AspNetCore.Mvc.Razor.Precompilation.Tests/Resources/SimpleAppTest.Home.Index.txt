@@ -160,5 +160,6 @@ AspNetCore.Views_Home_Index_cshtml, SimpleApp.PrecompiledViews, Version=1.0.0.0,
     
 
     
+    AspNetCore.Views_Shared__Layout_cshtml, SimpleApp.PrecompiledViews, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
 </body>
 </html>

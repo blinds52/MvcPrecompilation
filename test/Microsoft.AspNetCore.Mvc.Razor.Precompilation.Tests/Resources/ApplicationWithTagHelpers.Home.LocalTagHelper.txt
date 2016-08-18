@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> - ApplicationWithTagHelpers</title>
+    <link rel="stylesheet" href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.6/css/bootstrap.min.css" />
+<meta name="x-stylesheet-fallback-test" content="" class="sr-only" /><script>!function(a,b,c){var d,e=document,f=e.getElementsByTagName("SCRIPT"),g=f[f.length-1].previousElementSibling,h=e.defaultView&&e.defaultView.getComputedStyle?e.defaultView.getComputedStyle(g):g.currentStyle;if(h&&h[a]!==b)for(d=0;d<c.length;d++)e.write('<link rel="stylesheet" href="'+c[d]+'"/>')}("position","absolute",["\/lib\/bootstrap\/dist\/css\/bootstrap.min.css"]);</script>
+</head>
+<body>
+    <div class="container body-content">
+        
+AspNetCore.Views_Home_LocalTagHelper_cshtml, ApplicationWithTagHelpers.PrecompiledViews, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
+<test href="/Home/About">TestTagHelper content.</test>
+
+
+
+
+        <hr />
+        <footer>
+            <p>&copy; 2016 - ApplicationWithTagHelpers</p>
+        </footer>
+    </div>
+    
+    AspNetCore.Views_Shared__Layout_cshtml, ApplicationWithTagHelpers.PrecompiledViews, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
+</body>
+</html>

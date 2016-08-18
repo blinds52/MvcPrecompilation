@@ -66,9 +66,6 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Internal
             var applicationName = Path.GetFileNameWithoutExtension(outputPaths.CompilationFiles.Assembly);
             var dispatchArgs = new List<string>
             {
-#if DEBUG
-                "--debug",
-#endif
                 ProjectPath,
                 PrecompileRunCommand.ApplicationNameTemplate,
                 applicationName,
@@ -101,6 +98,14 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Internal
                     dispatchArgs.Add(StrongNameOptions.PublicSignTemplate);
                 }
             }
+
+#if DEBUG
+            var commandLineArgs = Environment.GetCommandLineArgs();
+            if (commandLineArgs.Length > 0 && commandLineArgs[0] == "--debug")
+            {
+                dispatchArgs.Insert(0, commandLineArgs[0]);
+            }
+#endif
 
             var toolName = typeof(Design.Program).GetTypeInfo().Assembly.GetName().Name;
             var dispatchCommand = DotnetToolDispatcher.CreateDispatchCommand(

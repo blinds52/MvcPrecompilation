@@ -2,23 +2,26 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using Microsoft.AspNetCore.Server.IntegrationTesting;
 using Microsoft.DotNet.Cli.Utils;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
-namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
+namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation
 {
     public abstract class ApplicationTestFixture : IDisposable
     {
-        private const string NuGetPackagesEnvironmentKey = "NUGET_PACKAGES";
+        public const string NuGetPackagesEnvironmentKey = "NUGET_PACKAGES";
         private readonly string _oldRestoreDirectory;
+        private bool _isRestored;
 
         protected ApplicationTestFixture(string applicationName)
         {
             ApplicationName = applicationName;
             _oldRestoreDirectory = Environment.GetEnvironmentVariable(NuGetPackagesEnvironmentKey);
-            RestoreApplication();
         }
 
         public string ApplicationName { get; }
@@ -27,14 +30,51 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
 
         public string TempRestoreDirectory { get; } = CreateTempRestoreDirectory();
 
-        public void UseTempRestoreDirectory()
+        public IApplicationDeployer CreateDeployment(RuntimeFlavor flavor)
         {
-            Environment.SetEnvironmentVariable(NuGetPackagesEnvironmentKey, TempRestoreDirectory);
+            if (!_isRestored)
+            {
+                Restore();
+                _isRestored = true;
+            }
+
+            var tempRestoreDirectoryEnvironment = new KeyValuePair<string, string>(
+                NuGetPackagesEnvironmentKey,
+                TempRestoreDirectory);
+
+            var deploymentParameters = new DeploymentParameters(
+                ApplicationPath,
+                ServerType.Kestrel,
+                flavor,
+                RuntimeArchitecture.x64)
+            {
+                PublishApplicationBeforeDeployment = true,
+                TargetFramework = flavor == RuntimeFlavor.Clr ? "net451" : "netcoreapp1.0",
+                Configuration = "Release",
+                EnvironmentVariables =
+                {
+                    tempRestoreDirectoryEnvironment
+                },
+                PublishEnvironmentVariables =
+                {
+                    tempRestoreDirectoryEnvironment
+                },
+            };
+
+            var logger = new LoggerFactory()
+                .AddConsole()
+                .CreateLogger($"{ApplicationName}:{flavor}");
+
+            return ApplicationDeployerFactory.Create(deploymentParameters, logger);
+        }
+
+        protected virtual void Restore()
+        {
+            RestoreProject(ApplicationPath);
         }
 
         public void Dispose()
         {
-            Environment.SetEnvironmentVariable(NuGetPackagesEnvironmentKey, _oldRestoreDirectory);
             try
             {
                 Directory.Delete(TempRestoreDirectory, recursive: true);
@@ -45,12 +85,12 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
             }
         }
 
-        private void RestoreApplication()
+        protected void RestoreProject(string applicationDirectory)
         {
             var packagesDirectory = GetNuGetPackagesDirectory();
             var args = new[]
             {
-                Path.Combine(ApplicationPath, "project.json"),
+                Path.Combine(applicationDirectory, "project.json"),
                 "-s",
                 packagesDirectory,
                 "-s",
@@ -63,8 +103,8 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
 
             var commandResult = Command
                 .CreateDotNet("restore", args)
-                .CaptureStdOut()
-                .CaptureStdErr()
+                .ForwardStdErr(Console.Error)
+                .ForwardStdOut(Console.Out)
                 .Execute();
 
             Assert.True(commandResult.ExitCode == 0,

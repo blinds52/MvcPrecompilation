@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using Microsoft.Extensions.PlatformAbstractions;
 
-namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
+namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation
 {
     public static class ApplicationPaths
     {

@@ -5,11 +5,12 @@ using System.IO;
 using System.Reflection;
 using Xunit;
 
-namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
+namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation
 {
     public static class TestEmbeddedResource
     {
         private static readonly object _writeLock = new object();
+        private static readonly string ProjectName = typeof(TestEmbeddedResource).GetTypeInfo().Assembly.GetName().Name;
 
         public static void AssertContent(string resourceFile, string actual)
         {
@@ -24,7 +25,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
             {
                 var solutionRoot = ApplicationPaths.SolutionDirectory;
                 var projectName = typeof(TestEmbeddedResource).GetTypeInfo().Assembly.GetName().Name;
-                var fullPath = Path.Combine(solutionRoot, "test", GetProjectName(), "Resources", resourceFile);
+                var fullPath = Path.Combine(solutionRoot, "test", ProjectName, "Resources", resourceFile);
                 lock (_writeLock)
                 {
                     // Write content to the file, creating it if necessary.
@@ -38,9 +39,15 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
 
         private static string GetResourceContent(string resourceFile)
         {
-            resourceFile = $"{GetProjectName()}.Resources.{resourceFile}";
+            resourceFile = $"{ProjectName}.Resources.{resourceFile}";
             var assembly = typeof(TestEmbeddedResource).GetTypeInfo().Assembly;
-            using (var streamReader = new StreamReader(assembly.GetManifestResourceStream(resourceFile)))
+            var resourceStream = assembly.GetManifestResourceStream(resourceFile);
+            if (resourceStream == null)
+            {
+                return null;
+            }
+
+            using (var streamReader = new StreamReader(resourceStream))
             {
                 // Normalize line endings to '\r\n' (CRLF). This removes core.autocrlf, core.eol, core.safecrlf, and
                 // .gitattributes from the equation and treats "\r\n" and "\n" as equivalent. Does not handle
@@ -49,6 +56,5 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Tests
             }
         }
 
-        private static string GetProjectName() => typeof(TestEmbeddedResource).GetTypeInfo().Assembly.GetName().Name;
     }
 }
