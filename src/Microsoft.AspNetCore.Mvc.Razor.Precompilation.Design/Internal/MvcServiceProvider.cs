@@ -3,27 +3,26 @@
 
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Internal;
-using Microsoft.AspNetCore.Mvc.DesignTime;
 using Microsoft.AspNetCore.Mvc.Internal;
 using Microsoft.AspNetCore.Mvc.Razor.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.ObjectPool;
+using Microsoft.Extensions.Options;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
 {
-    public class MvcServicesProvider
+    public class MvcServiceProvider
     {
         private readonly string _projectPath;
         private readonly string _contentRoot;
         private readonly string _applicationName;
 
-        public MvcServicesProvider(
+        public MvcServiceProvider(
             string projectPath,
             string applicationName,
             string contentRoot,
@@ -38,7 +37,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
 
             Host = serviceProvider.GetRequiredService<IMvcRazorHost>();
             Compiler = serviceProvider.GetRequiredService<CSharpCompiler>();
-
+            ViewEngineOptions = serviceProvider.GetRequiredService<IOptions<RazorViewEngineOptions>>().Value;
             FileProvider = serviceProvider.GetRequiredService<IRazorViewEngineFileProviderAccessor>().FileProvider;
         }
 
@@ -48,7 +47,9 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
 
         public IFileProvider FileProvider { get; }
 
-        private IMvcBuilderConfiguration GetConfigureCompilationAction(string configureCompilationType)
+        public RazorViewEngineOptions ViewEngineOptions { get; }
+
+        private IDesignTimeMvcBuilderConfiguration GetConfigureCompilationAction(string configureCompilationType)
         {
             Type type;
             if (!string.IsNullOrEmpty(configureCompilationType))
@@ -65,7 +66,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
                 var assembly = Assembly.Load(assemblyName);
                 type = assembly
                     .GetExportedTypes()
-                    .FirstOrDefault(typeof(IMvcBuilderConfiguration).IsAssignableFrom);
+                    .FirstOrDefault(typeof(IDesignTimeMvcBuilderConfiguration).IsAssignableFrom);
             }
 
             if (type == null)
@@ -73,17 +74,17 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
                 return null;
             }
 
-            var instance = Activator.CreateInstance(type) as IMvcBuilderConfiguration;
+            var instance = Activator.CreateInstance(type) as IDesignTimeMvcBuilderConfiguration;
             if (instance == null)
             {
                 throw new InvalidOperationException($"Type {configureCompilationType} does not implement " +
-                    $"{typeof(IMvcBuilderConfiguration)}.");
+                    $"{typeof(IDesignTimeMvcBuilderConfiguration)}.");
             }
 
             return instance;
         }
 
-        private IServiceProvider GetProvider(IMvcBuilderConfiguration mvcBuilderConfiguration)
+        private IServiceProvider GetProvider(IDesignTimeMvcBuilderConfiguration mvcBuilderConfiguration)
         {
             var services = new ServiceCollection();
 

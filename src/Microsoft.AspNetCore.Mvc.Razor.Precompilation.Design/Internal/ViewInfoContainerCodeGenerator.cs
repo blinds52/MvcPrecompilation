@@ -7,7 +7,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
-using Microsoft.AspNetCore.Mvc.Core.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Razor.Internal;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -15,9 +14,9 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
 {
-    public class ViewCollectionCodeGenerator
+    public class ViewInfoContainerCodeGenerator
     {
-        public ViewCollectionCodeGenerator(
+        public ViewInfoContainerCodeGenerator(
             CSharpCompiler compiler,
             CSharpCompilation compilation)
         {
@@ -34,17 +33,17 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
             var precompiledViewsArray = new StringBuilder();
             foreach (var item in result)
             {
+                var path = item.RelativeFileInfo.RelativePath;
                 precompiledViewsArray.AppendLine(
-                    $"new {typeof(PrecompiledViewInfo).FullName}(@\"{item.RelativeFileInfo.RelativePath}\", typeof({item.TypeName})),");
+                    $"new global::{typeof(ViewInfo).FullName}(@\"{path}\", typeof({item.TypeName})),");
             }
 
-            var factoryContent =
-            $@"
-namespace {AssemblyPart.ViewCollectionNamespace}
+            var factoryContent = $@"
+namespace {AssemblyPart.ViewInfoContainerNamespace}
 {{
-  public class {AssemblyPart.ViewCollectionTypeName} : {typeof(PrecompiledViews).FullName}
+  public class {AssemblyPart.ViewInfoContainerTypeName} : global::{typeof(ViewInfoContainer).FullName}
   {{
-    public {AssemblyPart.ViewCollectionTypeName}() : base(new[]
+    public {AssemblyPart.ViewInfoContainerTypeName}() : base(new[]
     {{
         {precompiledViewsArray}
     }})

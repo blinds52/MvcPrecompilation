@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Mvc.DesignTime;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ApplicationWithConfigureStartup
 {
-    public class Startup : IMvcBuilderConfiguration
+    public class Startup : IDesignTimeMvcBuilderConfiguration
     {
         public void ConfigureServices(IServiceCollection services)
         {

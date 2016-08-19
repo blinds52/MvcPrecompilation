@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Razor.Compilation;
+using Microsoft.AspNetCore.Mvc.Razor.Internal;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -34,7 +35,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
 
         private CommandOption ApplicationNameOption { get; set; }
 
-        private MvcServicesProvider ServicesProvider { get; set; }
+        private MvcServiceProvider MvcServiceProvider { get; set; }
 
         private CommonOptions Options { get; } = new CommonOptions();
 
@@ -64,7 +65,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
         {
             ParseArguments();
 
-            ServicesProvider = new MvcServicesProvider(
+            MvcServiceProvider = new MvcServiceProvider(
                 ProjectPath,
                 ApplicationNameOption.Value(),
                 Options.ContentRootOption.Value(),
@@ -73,7 +74,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
             Console.WriteLine("Running Razor view precompilation.");
 
             var stopWatch = Stopwatch.StartNew();
-            var results = ParseViews();
+            var results = GenerateCode();
             var success = true;
             foreach (var result in results)
             {
@@ -126,7 +127,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
                     emitResult = compilation.Emit(
                         assemblyStream,
                         pdbStream,
-                        options: ServicesProvider.Compiler.EmitOptions);
+                        options: MvcServiceProvider.Compiler.EmitOptions);
                 }
             }
 
@@ -135,7 +136,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
 
         private CSharpCompilation CompileViews(ViewCompilationInfo[] results, string assemblyname)
         {
-            var compiler = ServicesProvider.Compiler;
+            var compiler = MvcServiceProvider.Compiler;
             var compilation = compiler.CreateCompilation(assemblyname);
             var syntaxTrees = new SyntaxTree[results.Length];
 
@@ -150,13 +151,18 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
             });
 
             compilation = compilation.AddSyntaxTrees(syntaxTrees);
-            for (var i = 0; i < results.Length; i++)
+            Parallel.For(0, results.Length, ParalellOptions, i =>
             {
                 results[i].TypeName = ReadTypeInfo(compilation, syntaxTrees[i]);
-            }
+            });
 
-            compilation = compiler.ProcessCompilation(compilation);
-            var codeGenerator = new ViewCollectionCodeGenerator(compiler, compilation);
+            // Post process the compilation - run ExpressionRewritter and any user specified callbacks.            
+            compilation = ExpressionRewriter.Rewrite(compilation);
+            var compilationContext = new RoslynCompilationContext(compilation);
+            MvcServiceProvider.ViewEngineOptions.CompilationCallback(compilationContext);
+            compilation = compilationContext.Compilation;
+
+            var codeGenerator = new ViewInfoContainerCodeGenerator(compiler, compilation);
             codeGenerator.AddViewFactory(results);
 
             var assemblyName = new AssemblyName(ApplicationNameOption.Value());
@@ -185,17 +191,17 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
             }
         }
 
-        private ViewCompilationInfo[] ParseViews()
+        private ViewCompilationInfo[] GenerateCode()
         {
             var files = new List<RelativeFileInfo>();
-            GetRazorFiles(ServicesProvider.FileProvider, files, root: string.Empty);
+            GetRazorFiles(MvcServiceProvider.FileProvider, files, root: string.Empty);
             var results = new ViewCompilationInfo[files.Count];
             Parallel.For(0, results.Length, ParalellOptions, i =>
             {
                 var fileInfo = files[i];
                 using (var fileStream = fileInfo.FileInfo.CreateReadStream())
                 {
-                    var result = ServicesProvider.Host.GenerateCode(fileInfo.RelativePath, fileStream);
+                    var result = MvcServiceProvider.Host.GenerateCode(fileInfo.RelativePath, fileStream);
                     results[i] = new ViewCompilationInfo(fileInfo, result);
                 }
             });
@@ -225,10 +231,10 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation.Design.Internal
             var classDeclarations = syntaxTree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>();
             foreach (var declaration in classDeclarations)
             {
-                var typeModel = semanticModel.GetDeclaredSymbol(declaration);
-                if (typeModel.ContainingType == null && typeModel.DeclaredAccessibility == Accessibility.Public)
+                var typeSymbol = semanticModel.GetDeclaredSymbol(declaration);
+                if (typeSymbol.ContainingType == null && typeSymbol.DeclaredAccessibility == Accessibility.Public)
                 {
-                    return typeModel.ToDisplayString();
+                    return typeSymbol.ToDisplayString();
                 }
             }
 
