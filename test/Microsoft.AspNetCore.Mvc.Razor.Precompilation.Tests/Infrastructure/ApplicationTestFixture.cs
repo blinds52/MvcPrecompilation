@@ -95,8 +95,6 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Precompilation
                 packagesDirectory,
                 "-s",
                 ApplicationPaths.ArtifactPackagesDirectory,
-                "-s",
-                @"D:\work\katana\Mvc\artifacts\build",
                 "--packages",
                 TempRestoreDirectory,
             };
